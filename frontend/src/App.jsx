@@ -13,16 +13,8 @@ import {
 
 // IMPORTANT: For local development, replace these with your actual Firebase config and a hardcoded appId.
 // The initialAuthToken should be null for anonymous sign-in.
-const appId = 'ai-test-case-generator-app'; // Choose a unique ID for your app, e.g., 'your-company-jira-app'
-const firebaseConfig = {
-  apiKey: "AIzaSyATcCMEYYAY1HvYuY0FFa6Xm51lGVFGLmc",
-  authDomain: "ai-test-case-generator.firebaseapp.com",
-  projectId: "ai-test-case-generator",
-  storageBucket: "ai-test-case-generator.firebasestorage.app",
-  messagingSenderId: "736343339441",
-  appId: "1:736343339441:web:3dd62b0c491cb531358d90",
-  measurementId: "G-T8QVD8MM1F"
-};
+// Import configuration from config.js
+import { firebaseConfig, appId } from './config';
 const initialAuthToken = null; // Set to null for local development unless you have a custom token
 
 // Helper function to parse Atlassian Document Format (ADF) to plain text
