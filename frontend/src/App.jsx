@@ -647,51 +647,49 @@ const App = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-4 sm:p-6 lg:p-8 font-inter text-gray-800">
             <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6 sm:p-8 lg:p-10 border border-gray-200">
-                <div className="flex flex-col items-center mb-8">
-                    <h1 className="text-4xl font-extrabold text-purple-800 mb-6">AI-Test-Case-Generator</h1>
-                    <button
-                        onClick={async () => {
-    if (!db || !userId) {
-        console.error('Database or userId not initialized');
-        setErrorMessage('Application not ready. Please wait.');
-        return;
-    }
-    
-    setViewingSavedTestCases(true);
-    setLoading(true);
-    try {
-        console.log('Fetching test cases for user:', userId);
-        const testCasesPath = `artifacts/${appId}/users/${userId}/test_cases`;
-        console.log('Using Firestore path:', testCasesPath);
-        
-        const testCasesCollectionRef = collection(db, testCasesPath);
-        const testCasesSnapshot = await getDocs(testCasesCollectionRef);
-        const testCasesData = {};
-        
-        console.log('Number of documents found:', testCasesSnapshot.size);
-        
-        testCasesSnapshot.forEach((doc) => {
-            const data = doc.data();
-            console.log('Document data for', doc.id, ':', data);
-            // Make sure we have the required data
-            if (data.testCases) {
-                testCasesData[doc.id] = data;
-            }
-        });
-        
-        console.log('Final test cases data:', testCasesData);
-        setSavedTestCases(testCasesData);
-    } catch (error) {
-        console.error("Error loading saved test cases:", error);
-        setErrorMessage('Failed to load saved test cases.');
-    } finally {
-        setLoading(false);
-    }
-}}
-                        className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:-translate-y-0.5"
-                    >
-                        📋 View Saved Test Cases
-                    </button>
+                <div className="flex items-center justify-between mb-8">
+                    <div className="relative w-full flex items-center justify-center mb-8" style={{ minHeight: '56px' }}>
+                        <h1 className="absolute left-1/2 transform -translate-x-1/2 text-4xl font-extrabold text-purple-800 mb-6 text-center">AI-Test-Case-Generator</h1>
+                        <div className="absolute right-0 -mt-4">
+                            <button
+                                onClick={async () => {
+                                    if (!db || !userId) {
+                                        console.error('Database or userId not initialized');
+                                        setErrorMessage('Application not ready. Please wait.');
+                                        return;
+                                    }
+                                    setViewingSavedTestCases(true);
+                                    setLoading(true);
+                                    try {
+                                        console.log('Fetching test cases for user:', userId);
+                                        const testCasesPath = `artifacts/${appId}/users/${userId}/test_cases`;
+                                        console.log('Using Firestore path:', testCasesPath);
+                                        const testCasesCollectionRef = collection(db, testCasesPath);
+                                        const testCasesSnapshot = await getDocs(testCasesCollectionRef);
+                                        const testCasesData = {};
+                                        console.log('Number of documents found:', testCasesSnapshot.size);
+                                        testCasesSnapshot.forEach((doc) => {
+                                            const data = doc.data();
+                                            console.log('Document data for', doc.id, ':', data);
+                                            if (data.testCases) {
+                                                testCasesData[doc.id] = data;
+                                            }
+                                        });
+                                        console.log('Final test cases data:', testCasesData);
+                                        setSavedTestCases(testCasesData);
+                                    } catch (error) {
+                                        console.error("Error loading saved test cases:", error);
+                                        setErrorMessage('Failed to load saved test cases.');
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="px-3 py-2 text-sm bg-purple-600 text-white font-semibold rounded-md shadow hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:-translate-y-0.5"
+                            >
+                                📋 View Saved Test Cases
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* User ID Display */}
