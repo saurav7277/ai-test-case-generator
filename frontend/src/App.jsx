@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import {
-    getFirestore,
-    doc,
-    setDoc,
-    getDoc,
-    collection,
-    getDocs
-} from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
+import * as XLSX from 'xlsx';
 
 // IMPORTANT: For local development, replace these with your actual Firebase config and a hardcoded appId.
 // The initialAuthToken should be null for anonymous sign-in.
@@ -126,6 +119,12 @@ const App = () => {
     const [auth, setAuth] = useState(null);
     const [userId, setUserId] = useState(null);
     const [isAuthReady, setIsAuthReady] = useState(false);
+    // Add missing authError state for logout error handling
+    const [authError, setAuthError] = useState('');
+    // Add missing state for login/sign-up UI
+    const [authEmail, setAuthEmail] = useState('');
+    const [authPassword, setAuthPassword] = useState('');
+    const [showSignUp, setShowSignUp] = useState(false);
 
     // State for Jira configuration
     const [jiraUrl, setJiraUrl] = useState('');
@@ -163,20 +162,11 @@ const App = () => {
             setAuth(firebaseAuth);
 
             // Listen for auth state changes
-            const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+            const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
                 if (user) {
                     setUserId(user.uid);
                 } else {
-                    // Sign in anonymously if no initial token or user
-                    if (!initialAuthToken) {
-                        try {
-                            const anonymousUser = await signInAnonymously(firebaseAuth);
-                            setUserId(anonymousUser.user.uid);
-                        } catch (error) {
-                            console.error("Error signing in anonymously:", error);
-                            setErrorMessage("Failed to sign in. Please try again.");
-                        }
-                    }
+                    setUserId(null);
                 }
                 setIsAuthReady(true);
             });
@@ -190,10 +180,6 @@ const App = () => {
                     .catch((error) => {
                         console.error("Error signing in with custom token:", error);
                         setErrorMessage("Authentication failed. Please refresh the page.");
-                        // Fallback to anonymous if custom token fails
-                        signInAnonymously(firebaseAuth)
-                            .then(anonUser => setUserId(anonUser.user.uid))
-                            .catch(anonError => console.error("Anonymous sign-in failed:", anonError));
                     });
             }
 
@@ -632,8 +618,24 @@ const App = () => {
         }
     };
 
+    // Add logout handler
+    const handleLogout = async () => {
+        if (auth) {
+            try {
+                await getAuth().signOut();
+                setUserId(null);
+                setAuthError('');
+                setAuthEmail('');
+                setAuthPassword('');
+                setShowSignUp(false);
+            } catch (error) {
+                setAuthError('Logout failed. Please try again.');
+            }
+        }
+    };
+
     // Render loading state while Firebase is initializing
-    if (!isAuthReady || !jiraConfigLoaded) {
+    if (!isAuthReady) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
                 <div className="text-center text-gray-700">
@@ -644,8 +646,98 @@ const App = () => {
         );
     }
 
+    // Show login/sign-up UI if not authenticated
+    if (!userId && isAuthReady) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+                <div className="max-w-md w-full bg-white shadow-lg rounded-xl p-8 border border-gray-200">
+                    <h2 className="text-2xl font-bold text-purple-700 mb-6 text-center">{showSignUp ? 'Sign Up to AI-Test-Case-Generator' : 'Sign In to AI-Test-Case-Generator'}</h2>
+                    {/* Show error if any */}
+                    {authError && (
+                        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                            <strong className="font-bold">Error!</strong>
+                            <span className="block sm:inline"> {authError}</span>
+                        </div>
+                    )}
+                    {/* Email/password form */}
+                    <form
+                        onSubmit={async (e) => {
+                            e.preventDefault();
+                            try {
+                                setAuthError('');
+                                if (showSignUp) {
+                                    // Sign up
+                                    const userCredential = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+                                    setUserId(userCredential.user.uid);
+                                } else {
+                                    // Sign in
+                                    const userCredential = await signInWithEmailAndPassword(auth, authEmail, authPassword);
+                                    setUserId(userCredential.user.uid);
+                                }
+                            } catch (error) {
+                                setAuthError(error.message);
+                            }
+                        }}
+                        className="space-y-4"
+                    >
+                        <div>
+                            <label htmlFor="authEmail" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input
+                                type="email"
+                                id="authEmail"
+                                value={authEmail || ''}
+                                onChange={(e) => setAuthEmail(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 transition duration-200"
+                                placeholder="your.email@example.com"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="authPassword" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input
+                                type="password"
+                                id="authPassword"
+                                value={authPassword || ''}
+                                onChange={(e) => setAuthPassword(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 transition duration-200"
+                                placeholder="Your password"
+                                required
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            className="w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-300 ease-in-out"
+                        >
+                            {showSignUp ? 'Sign Up' : 'Sign In'}
+                        </button>
+                    </form>
+                    <div className="mt-4 text-center">
+                        <button
+                            type="button"
+                            className="text-purple-600 hover:underline font-medium"
+                            onClick={() => setShowSignUp((prev) => !prev)}
+                        >
+                            {showSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-4 sm:p-6 lg:p-8 font-inter text-gray-800">
+            {/* Logout Button (visible when user is logged in) */}
+            {userId && (
+                <div className="flex justify-end mb-6">
+                    <button
+                        onClick={handleLogout}
+                        className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-300 ease-in-out"
+                    >
+                        Logout
+                    </button>
+                </div>
+            )}
             <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6 sm:p-8 lg:p-10 border border-gray-200">
                 <div className="flex items-center justify-between mb-8">
                     <div className="relative w-full flex items-center justify-center mb-8" style={{ minHeight: '56px' }}>
@@ -929,16 +1021,9 @@ const App = () => {
                             <p><strong>Priority:</strong> {jiraDetails.fields.priority ? jiraDetails.fields.priority.name : 'N/A'}</p>
                             <p><strong>Assignee:</strong> {jiraDetails.fields.assignee ? jiraDetails.fields.assignee.displayName : 'Unassigned'}</p>
                             <p><strong>Reporter:</strong> {jiraDetails.fields.reporter ? jiraDetails.fields.reporter.displayName : 'N/A'}</p>
-                            <p className="col-span-1 md:col-span-2"><strong>Description:</strong> {jiraDetails.fields.description ? parseAdfToPlainText(jiraDetails.fields.description) : 'No description provided.'}</p>
-                            {/* --- UPDATED: Display Acceptance Criteria with pre-wrap and line break --- */}
-                            <p className="col-span-1 md:col-span-2">
-                                <strong>Acceptance Criteria:</strong> <br/> <span style={{ whiteSpace: 'pre-wrap' }}>{
-                                    jiraDetails.fields.customfield_10056 ?
-                                    parseAdfToPlainText(jiraDetails.fields.customfield_10056) :
-                                    'N/A'
-                                }</span>
-                            </p>
-                            {/* --- END UPDATED --- */}
+                            <p><strong>Created:</strong> {new Date(jiraDetails.fields.created).toLocaleString()}</p>
+                            <p><strong>Updated:</strong> {new Date(jiraDetails.fields.updated).toLocaleString()}</p>
+
                             {jiraDetails.fields.components && jiraDetails.fields.components.length > 0 && (
                                 <p className="col-span-1 md:col-span-2"><strong>Components:</strong> {jiraDetails.fields.components.map(c => c.name).join(', ')}</p>
                             )}
